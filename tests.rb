@@ -57,8 +57,8 @@ fnruby {
       ls = [1,2,3]
       r = match(ls,
             [] => "wrong answer",
-            x::xs => "right answer #{x}")
-      assert_equal("right answer 1", r)
+            x::xs => "right answer #{x} and #{xs}")
+      assert_equal("right answer 1 and [2, 3]", r)
     end
   end
 }
