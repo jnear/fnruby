@@ -52,6 +52,14 @@ fnruby {
                  false => "right answer"
       assert_equal(r, "right answer")
     end
+
+    def test_lists
+      ls = [1,2,3]
+      r = match(ls,
+            [] => "wrong answer",
+            x::xs => "right answer #{x}")
+      assert_equal("right answer 1", r)
+    end
   end
 }
 

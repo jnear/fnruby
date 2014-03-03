@@ -63,6 +63,26 @@ class PatternVar
   end
 end
 
+class PatternCons
+  def initialize(car,cdr)
+    @car = car
+    @cdr = cdr
+  end
+
+  def matches(val)
+    if val.is_a? Array and val != [] then
+      head, *tail = val
+      [head, tail]
+    else
+      false
+    end
+  end
+
+  def to_s
+    "PatternCons(" + @car.to_s + ", " + @cdr.to_s + ")"
+  end
+end
+
 def process_ast(ast)
   if ast.is_a? Parser::AST::Node then
     ast.type.to_s + "(" + ast.children.map{|x| process_ast(x)}.join(", ") + ")"
@@ -96,9 +116,24 @@ def process_pattern(p)
   names = []
   new_p = SDGUtils::Lambda::Sourcerer.reprint(p) do |node, parent, anno|
     if node.type == :send and node.children[0] == nil and node.children.length == 2 then
+      # a variable
       name = node.children[1]
       names.unshift(name)
       "PatternVar.new(:#{name})"
+    elsif node.type == :send and node.children[0] and node.children[0].type == :send and node.children[0].children[0] == nil then
+      # a x::xs pattern
+      first_name = node.children[0].children[1]
+      second_name = node.children[1]
+
+      # we have already processed the inner node
+      # so the name of it should already be there
+      # so we pop it off then add both names back in the right order
+      # note: this won't work for 1::xs, but we can't handle that anyway
+      names.shift
+      names.unshift(second_name)
+      names.unshift(first_name)
+
+      "PatternCons.new(:#{first_name}, :#{second_name})"
     else nil
     end
   end
@@ -116,7 +151,7 @@ def instr_src(src)
   ast = SDGUtils::Lambda::Sourcerer.parse_string(src).children[2]
   return "" unless ast
   orig_src = SDGUtils::Lambda::Sourcerer.read_src(ast)
-  #  puts "ast is " + ast.to_sexp
+  #puts "ast is " + ast.to_sexp
   
   instr_src = SDGUtils::Lambda::Sourcerer.reprint(ast) do |node, parent, anno|
     new_src =
