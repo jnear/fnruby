@@ -147,26 +147,17 @@ def process_rule(p, anno)
 end
 
 
-def instr_src(src)
-  ast = SDGUtils::Lambda::Sourcerer.parse_string(src).children[2]
+def instr_match(src)
+  ast = SDGUtils::Lambda::Sourcerer.parse_proc_string(src)
   return "" unless ast
   orig_src = SDGUtils::Lambda::Sourcerer.read_src(ast)
-  #puts "ast is " + ast.to_sexp
+  #puts ast.to_sexp
   
   instr_src = SDGUtils::Lambda::Sourcerer.reprint(ast) do |node, parent, anno|
     new_src =
       case node.type
       when :send
-        if node.children[1] == :data then
-          type_name_node = node.children[2]
-          type_name = type_name_node.children[1]
-          data_types = type_name_node.children[2]
-          ts = process_data(data_types)
-
-          results = ts.map{|x| process_data_type(type_name, x)}
-          final = results.map{|x| x.to_s}.join("; ")
-          final
-        elsif node.children[1] == :match then
+        if node.children[1] == :with then
           val = SDGUtils::Lambda::Sourcerer.compute_src(node.children[2], anno)
           hash = node.children[3].children
           rules = "[" + hash.map{|x| left, right = process_rule(x, anno); "[#{left}, #{right}]"}.join(", ") + "]"
@@ -180,6 +171,31 @@ def instr_src(src)
   end
   instr_src
 end
+
+def instr_data(src)
+  ast = SDGUtils::Lambda::Sourcerer.parse_proc_string(src)
+  return "" unless ast
+  orig_src = SDGUtils::Lambda::Sourcerer.read_src(ast)
+  #puts ast.to_sexp
+  
+  instr_src = SDGUtils::Lambda::Sourcerer.reprint(ast) do |node, parent, anno|
+    new_src =
+      case node.type
+      when :casgn
+        type_name = node.children[1]
+        data_types = node.children[2]
+        ts = process_data(data_types)
+
+        results = ts.map{|x| process_data_type(type_name, x)}
+        final = results.map{|x| x.to_s}.join("; ")
+        final
+      else
+        nil
+      end
+  end
+  instr_src
+end
+
 
 def pattern_match(val, rules)
   #  puts "val is #{val} and rules are #{rules}"
@@ -196,9 +212,14 @@ def pattern_match(val, rules)
   end
 end
 
-def fnruby(&b)
-  s = instr_src(b.source).to_s
-  #  puts s
+def data(&b)
+  old_src = b.source
+  s = instr_data(old_src).to_s
   eval(s)
 end
 
+def match(&b)
+  old_src = b.source
+  s = instr_match(old_src).to_s
+  eval(s, b.binding)
+end
