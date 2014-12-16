@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'sdg_utils/lambda/sourcerer'
 
 class Object
