@@ -1,4 +1,4 @@
-require_relative 'fnruby'
+require_relative 'lib/fnruby'
 require "test/unit"
 
 

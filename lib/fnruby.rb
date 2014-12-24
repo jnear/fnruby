@@ -43,9 +43,17 @@ class ADTInstance
       false
     end
   end
+
+  def arg_to_s a
+    if a.is_a? Array then
+      "[" + a.map{|x| x.to_s}.join(", ") + "]"
+    else
+      a.to_s
+    end
+  end
   
   def to_s
-    @label.to_s + "(" + @args.map{|x| x.to_s}.join(", ") + ")"
+    @label.to_s + "(" + @args.map{|x| arg_to_s x}.join(", ") + ")"
   end
 end
 
