@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'fnruby'
-  s.version     = '0.0.2'
+  s.version     = '0.0.3'
   s.date        = '2014-12-24'
   s.summary     = "FnRuby"
   s.description = "Functional Ruby"
