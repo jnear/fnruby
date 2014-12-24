@@ -45,7 +45,7 @@ class ADTInstance
   end
 
   def to_s
-    @label.to_s + "(" + @args.map{|x| arg_to_s x}.join(", ") + ")"
+    @label.to_s + "(" + @args.map{|x| x.to_s}.join(", ") + ")"
   end
 
   alias :inspect :to_s
