@@ -60,5 +60,14 @@ class TestSimpleNumber < Test::Unit::TestCase
       x::xs => "right answer #{x} and #{xs}" }
     assert_equal("right answer 1 and [2, 3]", r)
   end
+
+  def test_guards
+    x = Cons(1,2)
+    r = match { with x,
+      Nil => "wrong answer",
+      Cons(a, b) | (a == 2) => "wrong answer, guard",
+      Cons(a, b) | (a == 1) => "right answer! #{a} #{b}" }
+    assert_equal("right answer! 1 2", r)
+  end    
 end
 

@@ -115,15 +115,36 @@ def process_data_type(p, t)
   end
 end
 
+# (pair
+#   (send
+#     (send nil :Cons
+#       (send nil :a)
+#       (send nil :b)) :|
+#     (lvasgn :a
+#       (int 2)))
+#   (str "wrong answer"))
+
 def process_pattern(p)
   names = []
+  guard = nil
+
   new_p = SDGUtils::Lambda::Sourcerer.reprint(p) do |node, parent, anno|
     if node.type == :send and node.children[0] == nil and node.children.length == 2 then
       # a variable
       name = node.children[1]
       names.unshift(name)
       "PatternVar.new(:#{name})"
-    elsif node.type == :send and node.children[0] and node.children[0].type == :send and node.children[0].children[0] == nil then
+    elsif node.type == :lvar and node.children.length == 1 then
+      # a variable (case 2)
+      name = node.children[0]
+      names.unshift(name)
+      "PatternVar.new(:#{name})"
+    elsif node.type == :send and node.children[1] and node.children[1] == :| and node.children[2] then
+      # the last part of this is a guard
+      guard = node.children[2]
+      SDGUtils::Lambda::Sourcerer.compute_src(node.children[0], anno)
+    elsif node.type == :send and node.children[0] and node.children[0].type == :send and 
+        node.children[0].children[0] == nil and node.children.length == 2 then
       # a x::xs pattern
       first_name = node.children[0].children[1]
       second_name = node.children[1]
@@ -140,13 +161,21 @@ def process_pattern(p)
     else nil
     end
   end
-  [names, new_p]
+  [names.uniq, guard, new_p]
 end
 
 def process_rule(p, anno)
-  names, left = process_pattern(p.children[0])
-  right = "lambda {|" + names.map{|x| x.to_s}.join(",") + "| "  + SDGUtils::Lambda::Sourcerer.compute_src(p.children[1], anno) + "}"
-  [left, right]
+  names, guard_ast, left = process_pattern(p.children[0])
+  names_list = names.map{|x| x.to_s}.join(",")
+  right = "lambda {|" + names_list + "| " + SDGUtils::Lambda::Sourcerer.compute_src(p.children[1], anno) + "}"
+
+  if guard_ast then
+    guard = "lambda {|" + names_list + "| " + SDGUtils::Lambda::Sourcerer.compute_src(guard_ast, anno) + "}"
+  else
+    guard = "nil"
+  end
+
+  [left, guard, right]
 end
 
 
@@ -163,7 +192,7 @@ def instr_match(src)
         if node.children[1] == :with then
           val = SDGUtils::Lambda::Sourcerer.compute_src(node.children[2], anno)
           hash = node.children[3].children
-          rules = "[" + hash.map{|x| left, right = process_rule(x, anno); "[#{left}, #{right}]"}.join(", ") + "]"
+          rules = "[" + hash.map{|x| left, guard, right = process_rule(x, anno); "[#{left}, #{guard}, #{right}]"}.join(", ") + "]"
           "pattern_match(#{val}, #{rules})"
         else
           nil
@@ -201,14 +230,16 @@ end
 
 
 def pattern_match(val, rules)
-  #  puts "val is #{val} and rules are #{rules}"
+  # puts "val is #{val} and rules are #{rules}"
   if rules == [] then
     false
   else
     head, *tail = rules
     vals = head[0].matches(val)
-    if vals then 
-      head[1].call(*vals)
+    if vals and head[1] == nil then
+      head[2].call(*vals)
+    elsif vals and head[1] != nil and head[1].call(*vals) then
+      head[2].call(*vals)
     else
       pattern_match(val, tail)
     end
